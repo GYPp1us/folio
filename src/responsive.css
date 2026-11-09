@@ -1,0 +1,502 @@
+@media (min-width: 1600px) {
+  .sidebar {
+    width: 225px;
+  }
+  .conversation {
+    padding-left: 42px;
+    padding-right: 42px;
+  }
+  .composer-wrap {
+    padding-left: 42px;
+    padding-right: 42px;
+  }
+  .privacy-panel {
+    width: 305px;
+  }
+  .composer {
+    max-width: 1200px;
+    margin: auto;
+  }
+  .run-status {
+    max-width: 1200px;
+    margin: auto;
+  }
+  .message {
+    padding-top: 19px;
+    padding-bottom: 25px;
+  }
+  .markdown {
+    font-size: 13px;
+  }
+  .composer textarea {
+    font-size: 13px;
+  }
+}
+@media (max-width: 1150px) {
+  .sidebar {
+    width: 185px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .privacy-panel {
+    width: 255px;
+    min-width: 255px;
+  }
+  .conversation {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .composer-wrap {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+  .bilingual {
+    gap: 14px;
+  }
+  .bilingual > div + div {
+    padding-left: 14px;
+  }
+  .header-right {
+    gap: 8px;
+  }
+  .topbar {
+    padding: 0 17px;
+  }
+  .picker {
+    font-size: 9px;
+    padding: 5px;
+    gap: 3px;
+  }
+  .composer-controls {
+    align-items: flex-end;
+  }
+  .command-menu {
+    left: 17px;
+    right: 17px;
+  }
+  .review-text.bilingual {
+    display: flex;
+    flex-direction: column;
+  }
+  .review-text.bilingual > div + div {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid #e4d5bb;
+    padding-top: 13px;
+  }
+}
+@media (max-width: 850px) {
+  .sidebar {
+    width: 175px;
+  }
+  .privacy-panel {
+    position: absolute;
+    right: 0;
+    top: 49px;
+    bottom: 0;
+    z-index: 40;
+    width: 285px;
+    box-shadow: -10px 0 35px #5e3e1620;
+  }
+  .conversation {
+    padding: 7px 19px 20px;
+  }
+  .composer-wrap {
+    padding: 0 16px 12px;
+  }
+  .session-title {
+    max-width: 190px;
+  }
+  .breadcrumb {
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .bilingual {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .bilingual > div + div {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid #e5d8c0;
+    padding-top: 13px;
+  }
+  .message-head .muted {
+    font-size: 9px;
+  }
+  .model-controls {
+    gap: 1px;
+  }
+  .picker {
+    font-size: 10px;
+    padding: 5px;
+  }
+  .view-switch > button {
+    padding: 4px 6px;
+  }
+  .header-right {
+    gap: 6px;
+  }
+  .usage-link {
+    font-size: 10px;
+  }
+  .topbar {
+    gap: 6px;
+    padding: 0 14px;
+  }
+  .review-bottom {
+    flex-wrap: wrap;
+  }
+  .review-bottom .primary {
+    margin-left: auto;
+  }
+}
+@media (max-width: 620px) {
+  .sidebar {
+    position: fixed;
+    left: -240px;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    z-index: 70;
+    transition: left 0.2s;
+    box-shadow: 8px 0 40px #523c1b26;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .nav-scrim {
+    position: fixed;
+    display: block;
+    inset: 0;
+    z-index: 65;
+    background: #382d2050;
+  }
+  .mobile-only {
+    display: inline-flex;
+  }
+  .topbar {
+    height: 46px;
+    min-height: 46px;
+    padding: 0 10px;
+    gap: 5px;
+  }
+  .topbar > .icon {
+    margin-left: -3px;
+  }
+  .breadcrumb {
+    font-size: 10px;
+    gap: 6px;
+    max-width: 80px;
+  }
+  .breadcrumb > span {
+    display: none;
+  }
+  .session-title {
+    max-width: 110px;
+    font-size: 10px;
+  }
+  .header-right {
+    gap: 4px;
+  }
+  .header-right > .icon {
+    display: none;
+  }
+  .view-switch > button {
+    font-size: 9px;
+    padding: 4px 5px;
+  }
+  .usage-link {
+    font-size: 9px;
+  }
+  .conversation {
+    padding: 5px 15px 18px;
+  }
+  .message {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+  .message-head {
+    font-size: 10px;
+    gap: 7px;
+  }
+  .message-head time {
+    font-size: 8px;
+  }
+  .markdown {
+    font-size: 12px;
+  }
+  .composer-wrap {
+    padding: 0 10px calc(11px + env(safe-area-inset-bottom));
+  }
+  .composer textarea {
+    min-height: 49px;
+    max-height: 140px;
+    font-size: 12px;
+    padding: 10px 11px 2px;
+  }
+  .composer-controls {
+    padding: 5px 6px 7px;
+    gap: 3px;
+  }
+  .model-controls {
+    gap: 0;
+    flex: 1;
+  }
+  .picker {
+    font-size: 9px;
+    padding: 5px 4px;
+    gap: 2px;
+    max-width: 155px;
+  }
+  .picker svg {
+    width: 10px;
+  }
+  .send {
+    padding: 7px 8px;
+    min-height: 31px;
+  }
+  .send > span {
+    display: none;
+  }
+  .run-status {
+    height: 27px;
+    font-size: 9px;
+    gap: 8px;
+  }
+  .run-status > .text-button {
+    font-size: 9px;
+  }
+  .empty-session {
+    min-height: 43vh;
+  }
+  .empty-session h1 {
+    font-size: 16px;
+  }
+  .privacy-panel {
+    top: 46px;
+    width: min(295px, calc(100vw - 54px));
+    min-width: 0;
+  }
+  .privacy-head {
+    padding: 0 14px;
+  }
+  .findings {
+    padding: 0 10px;
+  }
+  .privacy-actions {
+    padding: 12px 13px;
+  }
+  .finding {
+    padding: 10px;
+  }
+  .review-text {
+    padding: 12px;
+  }
+  .source-prompt {
+    font-size: 12px;
+  }
+  .review-title {
+    font-size: 11px;
+  }
+  .review-bottom > span {
+    font-size: 9px;
+  }
+  .review-bottom .primary {
+    padding: 8px 9px;
+    font-size: 10px;
+  }
+  .review-bottom > .text-button {
+    font-size: 9px;
+  }
+  .modal {
+    padding: 18px;
+    max-height: 92dvh;
+    max-width: calc(100vw - 20px);
+  }
+  .modal-head h2 {
+    font-size: 16px;
+  }
+  .tabs {
+    gap: 1px;
+  }
+  .tabs > button {
+    font-size: 10px;
+    padding: 6px;
+  }
+  .usage-totals {
+    gap: 12px;
+  }
+  .usage-totals strong {
+    font-size: 15px;
+  }
+  .usage-totals span {
+    font-size: 9px;
+  }
+  .command-table > div {
+    grid-template-columns: 120px 1fr;
+    gap: 10px;
+  }
+  .command-menu {
+    left: 10px;
+    right: 10px;
+    max-height: 240px;
+  }
+  .command-menu > button {
+    font-size: 9px;
+    padding: 8px;
+  }
+  .command-menu code {
+    min-width: 85px;
+  }
+  .control-select {
+    align-items: stretch;
+  }
+  .control-select .picker {
+    font-size: 10px;
+  }
+  .setup {
+    margin: 4vh auto;
+    padding: 22px;
+  }
+  .setup-heading {
+    margin-bottom: 25px;
+  }
+  .toast {
+    bottom: 12px;
+    font-size: 10px;
+    width: calc(100vw - 25px);
+  }
+  .mcp-row .secondary {
+    font-size: 10px;
+    padding: 7px 8px;
+  }
+  .panel-row {
+    font-size: 11px;
+  }
+  .volume-row code {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 850px) {
+  .privacy-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    min-width: 255px;
+    width: 255px;
+    box-shadow: none;
+  }
+  .sidebar {
+    position: fixed;
+    left: -240px;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    z-index: 70;
+    box-shadow: 8px 0 40px #523c1b26;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .nav-scrim {
+    position: fixed;
+    display: block;
+    inset: 0;
+    z-index: 65;
+    background: #382d2050;
+  }
+  .mobile-only {
+    display: inline-flex;
+  }
+}
+@media (max-width: 620px) {
+  .workspace-body {
+    flex-direction: column;
+  }
+  .chat {
+    min-height: 0;
+  }
+  .privacy-panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    min-width: 0;
+    max-height: 38dvh;
+    min-height: 155px;
+    flex-shrink: 0;
+    box-shadow: none;
+    border-left: 0;
+    border-top: 1px solid #dfd2bb;
+  }
+  .privacy-head {
+    height: 35px;
+    min-height: 35px;
+  }
+  .privacy-actions {
+    padding: 8px 13px;
+  }
+  .privacy-note {
+    padding: 7px 13px;
+  }
+  .findings {
+    display: flex;
+    gap: 10px;
+    overflow: auto;
+    min-height: 80px;
+    padding-bottom: 4px;
+  }
+  .finding {
+    min-width: 230px;
+    flex: 1;
+    margin-bottom: 3px;
+  }
+}
+
+/* Virtuoso owns the scroller's geometry; insets belong to its measured rows. */
+.conversation[data-virtuoso-scroller] {
+  padding: 0;
+}
+@media (min-width: 1600px) {
+  .transcript-item,
+  .transcript-footer {
+    max-width: 1284px;
+    padding-left: 42px;
+    padding-right: 42px;
+  }
+}
+@media (max-width: 620px) {
+  .composer textarea {
+    font-size: 16px;
+  }
+  .model-controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+  .model-controls > * {
+    flex-shrink: 0;
+  }
+  .composer:has(textarea:disabled) {
+    display: none;
+  }
+  .privacy-panel {
+    min-height: 125px;
+    max-height: 38dvh;
+  }
+}

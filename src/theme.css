@@ -1,0 +1,224 @@
+.sidebar-brand {
+  gap: 6px;
+}
+.sidebar-brand .theme-toggle {
+  margin-left: auto;
+}
+.login-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.login-heading .wordmark {
+  margin: 0;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0e0e0f;
+  --panel: #171718;
+  --surface: #1d1c1d;
+  --hover: #2a2827;
+  --line: #373433;
+  --control-line: #504844;
+  --ink: #f2ece6;
+  --muted: #b8aea5;
+  --accent: #eca783;
+  --selected: #392b24;
+  --warning: #f2c192;
+  --warning-surface: #35261d;
+  --success: #b6cf9c;
+  --success-surface: #24301f;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+[data-theme="dark"] :is(.sidebar, .topbar, .privacy-panel) {
+  background: var(--panel);
+  border-color: var(--line);
+}
+[data-theme="dark"] :is(
+  .modal, .select-content, .command-menu, .account-popover, .sandbox-menu,
+  .review-card, .finding, .composer, .asset-card, .asset-remove,
+  .asset-translate, .rich-media, .jump-latest, .new-session, .secondary,
+  .interaction-options button, input, select, textarea
+) {
+  background: var(--surface);
+  border-color: var(--control-line);
+  color: var(--ink);
+}
+[data-theme="dark"] :is(.modal, .select-content, .command-menu, .account-popover, .sandbox-menu) {
+  box-shadow: 0 12px 34px #0008;
+}
+[data-theme="dark"] :is(.composer textarea, .session-search input) {
+  background: none;
+}
+[data-theme="dark"] :is(input, textarea)::placeholder {
+  color: var(--muted);
+}
+[data-theme="dark"] :is(button, input, textarea, select, a):focus-visible {
+  outline-color: var(--accent);
+}
+[data-theme="dark"] .composer:focus-within {
+  border-color: var(--accent);
+}
+[data-theme="dark"] :is(.modal-overlay, .nav-scrim) {
+  background: #0009;
+}
+[data-theme="dark"] ::selection {
+  background: #664737;
+  color: #fff;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--control-line);
+}
+
+[data-theme="dark"] :is(
+  .wordmark, .session-title, .markdown, .markdown h1, .markdown h2, .markdown h3,
+  .modal-head h2, .empty-session h1, .message-head strong, .source-prompt,
+  .english-preview, .panel-row, .field, .finding-head, .privacy-head,
+  .usage-totals strong, .mcp-row strong, .volume-row strong
+) {
+  color: var(--ink);
+}
+[data-theme="dark"] :is(
+  .icon, .picker, .muted, .nav-heading, .session-search, .breadcrumb, .breadcrumb > span,
+  .sandbox-item > button, .session-item > button, .sidebar-bottom button, .report-link,
+  .view-switch > button, .empty-session, .message-head, .message-head time, .language-label,
+  .run-status, .review-bottom > span, .privacy-head > span, .privacy-actions,
+  .privacy-note, .finding > code, .finding small, .field > span, .modal-description,
+  .small-status, .tabs > button, .usage-totals span, .rate-window > div, .rate-window small,
+  .mcp-row small, .command-table > div > span, .volume-row code, .volume-row small,
+  .setup-heading > span:last-child, details, summary > code, .live-tools
+) {
+  color: var(--muted);
+}
+[data-theme="dark"] :is(
+  .usage-link, .text-button, .command-menu code, .command-table code, .review-title,
+  .tag, .stop, .command-menu > button, .interaction summary
+) {
+  color: var(--accent);
+}
+[data-theme="dark"] :is(
+  .sidebar-bottom, .message, .bilingual > div + div,
+  .markdown td, .markdown th, .review-title, .review-bottom, .privacy-head,
+  .privacy-note, .tabs, .usage-totals, .mcp-row, .command-table > div, .volume-row
+) {
+  border-color: var(--line);
+}
+[data-theme="dark"] .transcript-message.part-last::after {
+  border-color: var(--line);
+}
+[data-theme="dark"] :is(.finding .picker, .control-select .picker, .markdown pre, .json-view, .tag) {
+  background: var(--panel);
+  border-color: var(--control-line);
+}
+[data-theme="dark"] :is(
+  .review-title, .review-bottom, .code-input, .view-switch, .segmented, .quota-track,
+  .asset-icon, .asset-main img, .artifact-preview, .token-totals > div, .connection-notice
+) {
+  background: var(--panel);
+}
+[data-theme="dark"] :is(.markdown pre, .json-view, .connection-notice, .select-item) {
+  color: var(--ink);
+}
+[data-theme="dark"] .markdown blockquote {
+  color: var(--muted);
+  border-color: var(--control-line);
+}
+[data-theme="dark"] :is(
+  .view-switch > button.active, .tabs > button.active, .segmented button.active,
+  .session-item.active, .sandbox-item.active, .sandbox-menu button.active,
+  .interaction-options button.active, .markdown :not(pre) > code
+) {
+  background: var(--selected);
+  color: var(--accent);
+}
+[data-theme="dark"] :is(
+  .icon:hover, .picker:hover, .new-session:hover, .secondary:hover, .block-translate:hover,
+  .sandbox-item:hover, .session-item:hover, .sandbox-menu button:hover,
+  .command-menu > button:hover, .select-item[data-highlighted]
+) {
+  background: var(--hover);
+  color: var(--ink);
+}
+[data-theme="dark"] :is(.primary, .send) {
+  background: #d8916d;
+  color: #21130d;
+}
+[data-theme="dark"] :is(.primary:hover, .send:hover) {
+  background: var(--accent);
+}
+[data-theme="dark"] .send:disabled {
+  background: var(--hover);
+  color: var(--muted);
+  opacity: 1;
+}
+[data-theme="dark"] .danger {
+  background: #a94438;
+  color: #fff;
+}
+[data-theme="dark"] .danger-text {
+  color: #f3a097 !important;
+}
+[data-theme="dark"] :is(.error, .connection-error, .interaction, .toast, .source-prompt mark) {
+  color: var(--warning);
+  background: var(--warning-surface);
+  border-color: #78523a;
+}
+[data-theme="dark"] :is(.finding small.warning, .danger-zone) {
+  color: var(--warning);
+  border-color: var(--line);
+}
+[data-theme="dark"] :is(.success, .source-prompt mark.resolved) {
+  color: var(--success);
+  background: var(--success-surface);
+  border-color: #58734a;
+}
+[data-theme="dark"] .finding-head > svg {
+  color: var(--success);
+}
+[data-theme="dark"] :is(.finding.focused, .asset-card.needs-review, .composer.dragging) {
+  border-color: var(--accent);
+}
+[data-theme="dark"] .composer.dragging {
+  background: var(--selected);
+}
+
+/* The wallpaper stays behind the scroller and above the composer. */
+[data-theme="dark"][data-wallpaper] .conversation-window {
+  isolation: isolate;
+}
+[data-theme="dark"][data-wallpaper] .conversation-window::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  right: 0;
+  bottom: 0;
+  width: min(60%, 560px);
+  height: 100%;
+  background: var(--folio-wallpaper) right bottom / contain no-repeat;
+  opacity: 0.12;
+}
+[data-theme="dark"][data-wallpaper] .chat[data-empty="true"] .conversation-window::before {
+  opacity: 0.88;
+}
+[data-theme="dark"][data-wallpaper] .empty-session {
+  align-items: flex-start;
+  padding-left: clamp(18px, 7%, 90px);
+}
+
+@media (max-width: 620px), (max-width: 900px) and (orientation: portrait) {
+  [data-theme="dark"][data-wallpaper] .conversation-window::before {
+    width: min(90%, 460px);
+    height: 78%;
+  }
+  [data-theme="dark"][data-wallpaper] .empty-session {
+    align-items: center;
+    justify-content: flex-start;
+    padding: clamp(18px, 6dvh, 58px) 0 0;
+    min-height: 0;
+  }
+}

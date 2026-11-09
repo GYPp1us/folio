@@ -1,0 +1,40 @@
+# Dependency, build and test output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.gradle/
+*.apk
+*.idsig
+artifacts/
+
+# Environment, application state and credentials
+.env
+.env.*
+!.env.example
+.runtime/
+*.log
+*.sqlite*
+*.db
+*.db-wal
+*.db-shm
+settings.enc
+vault.key
+*.pem
+*.key
+*.jks
+*.keystore
+.credentials.json
+.oauth_token
+sandbox.token
+bootstrap-token
+
+# Local design assets and workspace metadata
+src/assets/folio-wallpaper.png
+.codex/
+.codex-remote-attachments/
+.agents/
+.DS_Store
+Thumbs.db
