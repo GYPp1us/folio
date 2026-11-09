@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { memo, useContext, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Select from "@radix-ui/react-select";
@@ -37,6 +37,7 @@ export function Modal({
   description,
   children,
   wide = false,
+  returnFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -44,12 +45,23 @@ export function Modal({
   description?: string;
   children: ReactNode;
   wide?: boolean;
+  returnFocus?: RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="modal-overlay" />
-        <Dialog.Content className={`modal ${wide ? "wide" : ""}`}>
+        <Dialog.Content
+          className={`modal ${wide ? "wide" : ""}`}
+          onCloseAutoFocus={
+            returnFocus
+              ? (event) => {
+                  event.preventDefault();
+                  returnFocus.current?.focus({ preventScroll: true });
+                }
+              : undefined
+          }
+        >
           <div className="modal-head">
             <Dialog.Title>{title}</Dialog.Title>
             <Dialog.Close className="icon" aria-label="关闭">

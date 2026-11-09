@@ -8,6 +8,7 @@ import "./responsive.css";
 import "./setup.css";
 import "./workspace.css";
 import "./theme.css";
+import "./interaction.css";
 import { App } from "./App";
 import { applyTheme, savedTheme } from "./ThemeToggle";
 const wallpapers = import.meta.glob<string>("./assets/folio-wallpaper.png", {

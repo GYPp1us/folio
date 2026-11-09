@@ -2,6 +2,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -47,6 +48,9 @@ import {
 import { AssetRail, AssetPreview, uploadFile } from "./Assets";
 import { Conversation, type ConversationHandle } from "./Conversation";
 import { ActivityLine } from "./ActivityLine";
+import { PerformanceBar } from "./PerformanceBar";
+import { useDraft } from "./useDraft";
+import { useDrawerFocus, useMediaQuery, usePortraitSwipe } from "./useDrawer";
 import type { Activity } from "../shared/activity";
 import { RichContext } from "./rich-context";
 import { QuotaWidget } from "./QuotaWidget";
@@ -121,7 +125,6 @@ export function App() {
     >("connecting");
   const [blocks, setBlocks] = useState<TraceBlock[]>([]),
     [assets, setAssets] = useState<Asset[]>([]),
-    [attached, setAttached] = useState<string[]>([]),
     [previewId, setPreviewId] = useState(""),
     [uploading, setUploading] = useState(false),
     [dragging, setDragging] = useState(false),
@@ -134,10 +137,18 @@ export function App() {
           : "messages") || "messages",
     );
   const sessionSource = useRef<EventSource | null>(null),
-    fileInput = useRef<HTMLInputElement>(null),
-    attachmentRef = useRef<string[]>([]);
-  const [prompt, setPrompt] = useState(""),
-    [pending, setPending] = useState(""),
+    fileInput = useRef<HTMLInputElement>(null);
+  const {
+    prompt,
+    attached,
+    attachmentRef,
+    setPrompt,
+    setAttached,
+    selectDraft,
+    removeDraft,
+    clearSubmitted,
+  } = useDraft();
+  const [pending, setPending] = useState(""),
     [toast, setToast] = useState(""),
     [fatal, setFatal] = useState(""),
     [review, setReview] = useState<Review>(),
@@ -184,13 +195,49 @@ export function App() {
     [editSession, setEditSession] = useState<Session>(),
     [title, setTitle] = useState(""),
     [query, setQuery] = useState(""),
-    [commandsOpen, setCommandsOpen] = useState(false);
+    [commandsOpen, setCommandsOpen] = useState(false),
+    [candidateIndex, setCandidateIndex] = useState(-1),
+    [composerOptions, setComposerOptions] = useState(false);
+  const narrow = useMediaQuery("(max-width: 850px)");
+  const portrait = useMediaQuery("(orientation: portrait)");
+  const drawerOpen = narrow && sidebar;
+  const drawer = useDrawerFocus(drawerOpen);
+  const swipe = usePortraitSwipe(
+    narrow && portrait && !drawerOpen && !composerOptions,
+    () => setSidebar(true),
+  );
+  useEffect(() => {
+    if (!narrow) {
+      setSidebar(false);
+      setComposerOptions(false);
+    }
+  }, [narrow]);
   const source = useRef<EventSource | null>(null),
     active = useRef(""),
     conversation = useRef<ConversationHandle>(null),
     original = useRef<HTMLDivElement>(null),
     composer = useRef<HTMLTextAreaElement>(null),
-    initialized = useRef(false);
+    composerMore = useRef<HTMLButtonElement>(null),
+    initialized = useRef(false),
+    restoreComposer = useRef(false),
+    focusedReview = useRef("");
+  const reviewFocusKey = review ? review.id + ":" + review.status : "";
+  const focusReview = useCallback(
+    (element: HTMLElement | null) => {
+      if (!element || focusedReview.current === reviewFocusKey) return;
+      focusedReview.current = reviewFocusKey;
+      element.focus({ preventScroll: true });
+    },
+    [reviewFocusKey],
+  );
+  useLayoutEffect(() => {
+    if (review) return;
+    focusedReview.current = "";
+    if (restoreComposer.current) {
+      restoreComposer.current = false;
+      composer.current?.focus({ preventScroll: true });
+    }
+  }, [review]);
   const notify = useCallback((text: string) => setToast(text), []);
   const openAsset = useCallback((a: Asset) => setPreviewId(a.id), []);
   const onAsset = useCallback(
@@ -342,13 +389,14 @@ export function App() {
     setActivityConnection("connecting");
     setBlocks([]);
     setAssets([]);
-    setAttached([]);
-    attachmentRef.current = [];
+    const restoredAttachments = selectDraft(session.id);
     setPreviewId("");
     setCurrent(session);
     setMessages([]);
     setReview(undefined);
-    setPrompt("");
+    setCommandsOpen(false);
+    setReferencesOpen(false);
+    setCandidateIndex(-1);
     setEvents([]);
     setOutput("");
     setCaps(undefined);
@@ -364,6 +412,14 @@ export function App() {
     setActivities(detail.activities || []);
     setBlocks(detail.blocks);
     setAssets(detail.assets);
+    if (restoredAttachments.length) {
+      const available = new Set(detail.assets.map((asset) => asset.id));
+      const missing = new Set(
+        restoredAttachments.filter((id) => !available.has(id)),
+      );
+      if (missing.size)
+        setAttached(attachmentRef.current.filter((id) => !missing.has(id)));
+    }
     if (detail.session.downstreamMode)
       setDownstream(detail.session.downstreamMode);
     subscribeSession(session.id);
@@ -587,7 +643,7 @@ export function App() {
       setReferencesOpen(false);
       composer.current?.focus();
     },
-    [notify],
+    [notify, attachmentRef, setAttached, setPrompt],
   );
   async function send() {
     if (!current || (!prompt.trim() && !attached.length) || uploading) return;
@@ -601,6 +657,7 @@ export function App() {
       return;
     }
     const text = prompt.trim();
+    const sessionId = current.id;
     const local: Record<string, typeof sdkTab> = {
       "/usage": "usage",
       "/cost": "usage",
@@ -613,7 +670,7 @@ export function App() {
     };
     if (local[text]) {
       showSdk(local[text]);
-      setPrompt("");
+      clearSubmitted(sessionId, text, attached);
       return;
     }
     await action("send", async () => {
@@ -626,17 +683,17 @@ export function App() {
         result?: unknown;
         session?: Session;
       }>("/messages", {
-        sessionId: current.id,
+        sessionId,
         prompt: text,
         mode: reviewMode,
         steering: running,
         attachments: attached,
         ...options(),
       });
-      setPrompt("");
-      setAttached([]);
-      attachmentRef.current = [];
+      if (!result.review) clearSubmitted(sessionId, text, attached);
+      if (active.current !== sessionId) return;
       setCommandsOpen(false);
+      setReferencesOpen(false);
       if (result.review) {
         setReview(result.review);
         setFocused(result.review.findings[0]?.id || "");
@@ -650,12 +707,13 @@ export function App() {
       }
       if (result.runId) {
         const detail = await api<{ messages: Message[] }>(
-          `/sessions/${current.id}?tail=1`,
+          `/sessions/${sessionId}?tail=1`,
         );
+        if (active.current !== sessionId) return;
         setMessages((list) =>
           detail.messages.reduce((all, m) => upsert(all, m), list),
         );
-        if (result.runId !== runId) watch(result.runId, current.id);
+        if (result.runId !== runId) watch(result.runId, sessionId);
         else setActivity("插话已排队");
       } else if (result.control) {
         setControlResult({ method: result.control, result: result.result });
@@ -666,35 +724,39 @@ export function App() {
       }
     });
   }
+  function returnToDraft() {
+    if (!review) return;
+    setPrompt(review.original);
+    setAttached(review.attachments || []);
+    restoreComposer.current = true;
+    setSelection(undefined);
+    setReview(undefined);
+  }
   async function decide(id: string, strategy: Strategy) {
     if (!review) return;
     if (strategy === "rewrite") {
-      setPrompt(review.original);
-      setAttached(review.attachments || []);
-      attachmentRef.current = review.attachments || [];
-      setReview(undefined);
+      returnToDraft();
       return;
     }
     await action("decision", async () => {
-      setReview(
-        await api<Review>(
-          `/reviews/${review.id}`,
-          { decisions: [{ id, strategy }] },
-          "PATCH",
-        ),
+      const updated = await api<Review>(
+        `/reviews/${review.id}`,
+        { decisions: [{ id, strategy }] },
+        "PATCH",
       );
+      if (active.current === review.sessionId) setReview(updated);
     });
   }
   async function markSelection() {
     if (!review || !selection) return;
     await action("mark", async () => {
-      setReview(
-        await api<Review>(
-          `/reviews/${review.id}`,
-          { manual: selection },
-          "PATCH",
-        ),
+      const updated = await api<Review>(
+        `/reviews/${review.id}`,
+        { manual: selection },
+        "PATCH",
       );
+      if (active.current !== review.sessionId) return;
+      setReview(updated);
       setSelection(undefined);
       window.getSelection()?.removeAllRanges();
     });
@@ -724,6 +786,7 @@ export function App() {
       if (review.status !== "prepared") {
         setActivity(review.mode === "direct" ? "正在传递" : "正在翻译输入");
         const prepared = await api<Review>(`/reviews/${review.id}/prepare`, {});
+        if (active.current !== review.sessionId) return;
         setReview(prepared);
         if (review.mode === "manual") {
           setActivity("等待英文确认");
@@ -735,6 +798,12 @@ export function App() {
         reviewId: review.id,
         ...options(),
       });
+      clearSubmitted(
+        review.sessionId,
+        review.original,
+        review.attachments || [],
+      );
+      if (active.current !== review.sessionId) return;
       setReview(undefined);
       const detail = await api<{ messages: Message[] }>(
         `/sessions/${current.id}?tail=1`,
@@ -742,6 +811,7 @@ export function App() {
       setMessages((list) =>
         detail.messages.reduce((all, m) => upsert(all, m), list),
       );
+      if (active.current !== review.sessionId) return;
       if (response.id !== runId) watch(response.id, current.id);
       else setActivity("插话已排队");
     });
@@ -765,6 +835,63 @@ export function App() {
     value: value.value,
     label: value.displayName,
   })) || [{ value: model, label: capLoading ? "模型加载中" : model }];
+  const advancedComposerControls = (
+    <>
+      <Picker
+        label="主模型思考强度"
+        value={effort}
+        options={effortOptions}
+        disabled={!!pending}
+        onChange={(value) => {
+          setEffort(value as Effort);
+          if (running && current)
+            void action("effort", async () => {
+              await api(`/sessions/${current.id}/control`, {
+                method:
+                  value === "off"
+                    ? "setMaxThinkingTokens"
+                    : "applyFlagSettings",
+                args:
+                  value === "off"
+                    ? [0]
+                    : [
+                        {
+                          effortLevel: value === "default" ? null : value,
+                        },
+                      ],
+              });
+            });
+        }}
+      />
+      <Picker
+        label="上行发送方式"
+        value={reviewMode}
+        options={[
+          { value: "automatic", label: "上行：静默翻译" },
+          { value: "manual", label: "上行：逐步确认" },
+          { value: "direct", label: "上行：直接发送" },
+        ]}
+        onChange={(value) => setReviewMode(value as ReviewMode)}
+        disabled={!!review}
+      />
+      <Picker
+        label="下行翻译方式"
+        value={downstream}
+        options={[
+          { value: "all", label: "下行：翻译全部" },
+          { value: "messages", label: "下行：仅翻译回复" },
+          { value: "manual", label: "下行：手动翻译" },
+        ]}
+        onChange={(value) => {
+          setDownstream(value as DownstreamMode);
+          if (current)
+            void api(`/sessions/${current.id}/preferences`, {
+              downstreamMode: value,
+            }).catch((e) => notify(e.message));
+        }}
+      />
+    </>
+  );
   const commandList = [
     ...new Map(
       [...shortcuts, ...(caps?.commands || [])].map((command) => [
@@ -777,6 +904,43 @@ export function App() {
       command.name.includes(prompt.slice(1).trim().split(" ")[0]),
     )
     .slice(0, 12);
+  const candidates =
+    commandsOpen && /^\/[^\s]*$/.test(prompt)
+      ? commandList.map((command) => ({
+          id: command.name,
+          label: "/" + command.name,
+          description: command.description,
+          select: () => {
+            setPrompt("/" + command.name + " ");
+            setCommandsOpen(false);
+            composer.current?.focus();
+          },
+        }))
+      : referencesOpen
+        ? assets
+            .filter(
+              (asset) =>
+                asset.origin === "upload" &&
+                asset.name
+                  .toLowerCase()
+                  .includes(
+                    (prompt.match(/@([^@\s]*)$/)?.[1] || "").toLowerCase(),
+                  ),
+            )
+            .slice(-8)
+            .map((asset) => ({
+              id: asset.id,
+              label: "@" + asset.name,
+              description: asset.kind,
+              select: () => referenceAsset(asset),
+            }))
+        : [];
+  useEffect(() => {
+    if (candidateIndex >= 0)
+      document
+        .getElementById("candidate-" + candidateIndex)
+        ?.scrollIntoView({ block: "nearest" });
+  }, [candidateIndex]);
   const repos = [
     ...new Set(
       [config?.defaultRepo, ...sessions.map((session) => session.repo)].filter(
@@ -863,21 +1027,57 @@ export function App() {
   return (
     <ArtifactLink.Provider value={setPreviewId}>
       <RichContext.Provider value={richContext}>
-        <div className="app-shell">
-          {sidebar && (
+        <div className="app-shell" {...swipe}>
+          {drawerOpen && (
             <button
               className="nav-scrim"
               aria-label="收起导航"
+              tabIndex={-1}
               onClick={() => setSidebar(false)}
             />
           )}
-          <aside className={`sidebar ${sidebar ? "open" : ""}`}>
+          <aside
+            className={`sidebar ${drawerOpen ? "open" : ""}`}
+            id="workspace-navigation"
+            aria-label="会话与沙箱导航"
+            role={drawerOpen ? "dialog" : undefined}
+            aria-modal={drawerOpen || undefined}
+            inert={narrow && !drawerOpen}
+            onKeyDown={(event) => {
+              if (!drawerOpen) return;
+              if (event.key === "Escape") {
+                event.preventDefault();
+                setSidebar(false);
+              }
+              if (event.key !== "Tab") return;
+              const focusable = [
+                ...event.currentTarget.querySelectorAll<HTMLElement>(
+                  "button:not(:disabled), input:not(:disabled), a[href], summary",
+                ),
+              ].filter(
+                (item) =>
+                  item.tabIndex >= 0 &&
+                  item.getClientRects().length &&
+                  !item.closest("[inert]"),
+              );
+              const first = focusable[0],
+                last = focusable.at(-1);
+              if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+              } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+              }
+            }}
+          >
             <div className="sidebar-brand">
               <span className="wordmark">Folio</span>
               <ThemeToggle />
               <button
                 className="icon mobile-only"
                 aria-label="关闭导航"
+                ref={drawer.close}
                 onClick={() => setSidebar(false)}
               >
                 <X size={17} />
@@ -1007,11 +1207,14 @@ export function App() {
               </div>
             </div>
           </aside>
-          <div className="workspace">
+          <div className="workspace" inert={drawerOpen}>
             <header className="topbar">
               <button
                 className="icon mobile-only"
                 aria-label="打开导航"
+                aria-controls="workspace-navigation"
+                aria-expanded={drawerOpen}
+                ref={drawer.trigger}
                 onClick={() => setSidebar(true)}
               >
                 <Menu size={17} />
@@ -1077,6 +1280,7 @@ export function App() {
                   assets={assets}
                   view={view}
                   completedRunId={completedRunId}
+                  activeRunId={runId}
                   liveText={deferredOutput}
                   liveRunId={running ? runId : ""}
                   onError={notify}
@@ -1151,7 +1355,7 @@ export function App() {
                     <section className="review-card">
                       <div className="review-title">
                         <ShieldCheck size={16} />
-                        <strong>
+                        <strong ref={focusReview} tabIndex={-1}>
                           {review.status === "prepared"
                             ? "英文确认"
                             : "隐私处理"}
@@ -1178,12 +1382,18 @@ export function App() {
                               focused={focused}
                               onFocus={(id) => {
                                 setFocused(id);
-                                document
-                                  .getElementById("finding-" + id)
-                                  ?.scrollIntoView({
-                                    block: "nearest",
-                                    behavior: "smooth",
-                                  });
+                                const finding = document.getElementById(
+                                  "finding-" + id,
+                                );
+                                finding?.focus({ preventScroll: true });
+                                finding?.scrollIntoView({
+                                  block: "nearest",
+                                  behavior: matchMedia(
+                                    "(prefers-reduced-motion: reduce)",
+                                  ).matches
+                                    ? "auto"
+                                    : "smooth",
+                                });
                               }}
                             />
                           </div>
@@ -1214,14 +1424,7 @@ export function App() {
                         <button
                           className="text-button"
                           disabled={!!pending}
-                          onClick={() => {
-                            setPrompt(review.original);
-                            setAttached(review.attachments || []);
-                            attachmentRef.current = review.attachments || [];
-                            setReview(undefined);
-                            setSelection(undefined);
-                            composer.current?.focus();
-                          }}
+                          onClick={returnToDraft}
                         >
                           <ArrowLeft size={13} />
                           返回修改
@@ -1285,46 +1488,27 @@ export function App() {
                       </button>
                     )}
                   </div>
-                  {commandsOpen &&
-                    prompt.startsWith("/") &&
-                    commandList.length > 0 && (
-                      <div className="command-menu">
-                        {commandList.map((command) => (
-                          <button
-                            key={command.name}
-                            onClick={() => {
-                              setPrompt("/" + command.name + " ");
-                              setCommandsOpen(false);
-                              composer.current?.focus();
-                            }}
-                          >
-                            <code>/{command.name}</code>
-                            <span>{command.description}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  {referencesOpen && (
-                    <div className="command-menu reference-menu">
-                      {assets
-                        .filter(
-                          (a) =>
-                            a.origin === "upload" &&
-                            a.name
-                              .toLowerCase()
-                              .includes(
-                                (
-                                  prompt.match(/@([^@\s]*)$/)?.[1] || ""
-                                ).toLowerCase(),
-                              ),
-                        )
-                        .slice(-8)
-                        .map((a) => (
-                          <button key={a.id} onClick={() => referenceAsset(a)}>
-                            <code>@{a.name}</code>
-                            <span>{a.kind}</span>
-                          </button>
-                        ))}
+                  {candidates.length > 0 && (
+                    <div
+                      id="composer-candidates"
+                      className="command-menu"
+                      role="listbox"
+                      aria-label="输入候选"
+                    >
+                      {candidates.map((candidate, index) => (
+                        <button
+                          key={candidate.id}
+                          id={"candidate-" + index}
+                          role="option"
+                          aria-selected={index === candidateIndex}
+                          tabIndex={-1}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={candidate.select}
+                        >
+                          <code>{candidate.label}</code>
+                          <span>{candidate.description}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                   <div
@@ -1347,7 +1531,11 @@ export function App() {
                   >
                     <AssetRail
                       onError={notify}
-                      assets={assets.filter((a) => attached.includes(a.id))}
+                      assets={
+                        review
+                          ? []
+                          : assets.filter((a) => attached.includes(a.id))
+                      }
                       onOpen={(a) => setPreviewId(a.id)}
                       onReference={referenceAsset}
                       onRemove={(a) => {
@@ -1371,9 +1559,18 @@ export function App() {
                       ref={composer}
                       aria-label={running ? "输入插话" : "输入任务"}
                       rows={2}
-                      value={prompt}
+                      value={review ? "" : prompt}
+                      aria-controls={
+                        candidates.length ? "composer-candidates" : undefined
+                      }
+                      aria-activedescendant={
+                        candidates[candidateIndex]
+                          ? "candidate-" + candidateIndex
+                          : undefined
+                      }
                       onChange={(e) => {
                         setPrompt(e.target.value);
+                        setCandidateIndex(-1);
                         setCommandsOpen(e.target.value.startsWith("/"));
                         setReferencesOpen(/@[^@\s]*$/.test(e.target.value));
                       }}
@@ -1390,21 +1587,37 @@ export function App() {
                           void addFiles(files);
                         }
                       }}
+                      onBlur={() => {
+                        setCommandsOpen(false);
+                        setReferencesOpen(false);
+                      }}
                       onKeyDown={(e) => {
+                        if (e.nativeEvent.isComposing) return;
                         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                           e.preventDefault();
                           if (!pending && !review) void send();
-                        }
-                        if (
-                          e.key === "Tab" &&
-                          commandsOpen &&
-                          commandList.length
+                        } else if (
+                          candidates.length &&
+                          (e.key === "ArrowDown" || e.key === "ArrowUp")
                         ) {
                           e.preventDefault();
-                          setPrompt("/" + commandList[0].name + " ");
-                          setCommandsOpen(false);
-                        }
-                        if (e.key === "Escape") {
+                          const direction = e.key === "ArrowDown" ? 1 : -1;
+                          setCandidateIndex((index) =>
+                            index < 0
+                              ? direction > 0
+                                ? 0
+                                : candidates.length - 1
+                              : (index + direction + candidates.length) %
+                                candidates.length,
+                          );
+                        } else if (
+                          e.key === "Enter" &&
+                          !e.shiftKey &&
+                          candidates[candidateIndex]
+                        ) {
+                          e.preventDefault();
+                          candidates[candidateIndex].select();
+                        } else if (e.key === "Escape") {
                           setCommandsOpen(false);
                           setReferencesOpen(false);
                         }
@@ -1456,35 +1669,6 @@ export function App() {
                           }}
                         />
                         <Picker
-                          label="主模型思考强度"
-                          value={effort}
-                          options={effortOptions}
-                          disabled={!!pending}
-                          onChange={(value) => {
-                            setEffort(value as Effort);
-                            if (running && current)
-                              void action("effort", async () => {
-                                await api(`/sessions/${current.id}/control`, {
-                                  method:
-                                    value === "off"
-                                      ? "setMaxThinkingTokens"
-                                      : "applyFlagSettings",
-                                  args:
-                                    value === "off"
-                                      ? [0]
-                                      : [
-                                          {
-                                            effortLevel:
-                                              value === "default"
-                                                ? null
-                                                : value,
-                                          },
-                                        ],
-                                });
-                              });
-                          }}
-                        />
-                        <Picker
                           label="工具调用审核"
                           value={permission}
                           options={(
@@ -1514,35 +1698,19 @@ export function App() {
                               });
                           }}
                         />
-                        <Picker
-                          label="上行发送方式"
-                          value={reviewMode}
-                          options={[
-                            { value: "automatic", label: "上行：静默翻译" },
-                            { value: "manual", label: "上行：逐步确认" },
-                            { value: "direct", label: "上行：直接发送" },
-                          ]}
-                          onChange={(value) =>
-                            setReviewMode(value as ReviewMode)
-                          }
-                          disabled={!!review}
-                        />
-                        <Picker
-                          label="下行翻译方式"
-                          value={downstream}
-                          options={[
-                            { value: "all", label: "下行：翻译全部" },
-                            { value: "messages", label: "下行：仅翻译回复" },
-                            { value: "manual", label: "下行：手动翻译" },
-                          ]}
-                          onChange={(value) => {
-                            setDownstream(value as DownstreamMode);
-                            if (current)
-                              void api(`/sessions/${current.id}/preferences`, {
-                                downstreamMode: value,
-                              }).catch((e) => notify(e.message));
-                          }}
-                        />
+                        {narrow ? (
+                          <button
+                            type="button"
+                            className="composer-more text-button"
+                            ref={composerMore}
+                            onClick={() => setComposerOptions(true)}
+                            aria-haspopup="dialog"
+                          >
+                            <Settings2 size={14} /> 更多
+                          </button>
+                        ) : (
+                          advancedComposerControls
+                        )}
                       </div>
                       <button
                         className="send"
@@ -1617,6 +1785,7 @@ export function App() {
                       <div
                         className={`finding ${focused === finding.id ? "focused" : ""}`}
                         id={"finding-" + finding.id}
+                        tabIndex={-1}
                         key={finding.id}
                         onClick={() => setFocused(finding.id)}
                       >
@@ -1627,6 +1796,20 @@ export function App() {
                           )}
                         </div>
                         <code>{finding.value}</code>
+                        <button
+                          type="button"
+                          className="text-button finding-locate"
+                          onClick={() => {
+                            setFocused(finding.id);
+                            const mark = document.getElementById(
+                              "source-mark-" + finding.id,
+                            );
+                            mark?.focus({ preventScroll: true });
+                            mark?.scrollIntoView({ block: "nearest" });
+                          }}
+                        >
+                          定位原文
+                        </button>
                         <Picker
                           label={finding.label + "处理方式"}
                           value={finding.strategy}
@@ -1664,7 +1847,23 @@ export function App() {
                 </aside>
               )}
             </div>
+            {current && (
+              <PerformanceBar
+                usage={current.usage}
+                onOpen={() => showSdk("usage")}
+              />
+            )}
           </div>
+          {narrow && (
+            <Modal
+              open={composerOptions}
+              onOpenChange={setComposerOptions}
+              title="输入设置"
+              returnFocus={composerMore}
+            >
+              <div className="composer-options">{advancedComposerControls}</div>
+            </Modal>
+          )}
           <ControlsPanel
             open={sdkOpen}
             onOpenChange={setSdkOpen}
@@ -1816,6 +2015,7 @@ export function App() {
                         undefined,
                         "DELETE",
                       );
+                      removeDraft(editSession.id);
                       setEditSession(undefined);
                       await init();
                     });
@@ -1871,6 +2071,15 @@ function Marked({
     parts.push(
       <mark
         key={finding.id}
+        id={"source-mark-" + finding.id}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onFocus(finding.id);
+          }
+        }}
         className={`${finding.strategy === "pending" ? "pending" : "resolved"} ${focused === finding.id ? "focused" : ""}`}
         onClick={() => onFocus(finding.id)}
       >

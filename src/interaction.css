@@ -1,0 +1,150 @@
+.conversation-window .markdown {
+  font-size: 14px;
+}
+.conversation-window .process-row .markdown {
+  font-size: 12px;
+}
+.conversation-window .language-label {
+  font-size: 11px;
+}
+.conversation-window .markdown :not(pre) > code {
+  font-size: 0.9em;
+}
+.transcript-item > .markdown {
+  max-width: 76ch;
+}
+.empty-session h1 {
+  font-size: 24px;
+}
+.empty-session span {
+  font-size: 12px;
+}
+
+.run-summary {
+  padding-block: 4px;
+}
+.run-summary button {
+  border-radius: 5px;
+  min-height: 32px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.run-summary button:hover {
+  background: var(--hover, #eee9e0);
+  color: var(--accent);
+}
+.run-summary small {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.run-summary svg,
+.process-chevron {
+  transition: transform 120ms ease;
+}
+.run-summary button[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.command-menu [aria-selected="true"] {
+  background: var(--hover, #f0e5d3);
+}
+.composer-options {
+  display: grid;
+  gap: 8px;
+}
+.composer-options .picker {
+  max-width: none;
+  width: 100%;
+  min-height: 40px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  padding: 7px 10px;
+}
+.finding-locate {
+  margin-bottom: 7px;
+}
+
+.performance-bar {
+  display: none;
+  align-items: center;
+  flex-shrink: 0;
+  gap: clamp(8px, 1.5vw, 24px);
+  border-top: 1px solid var(--line);
+  padding: 0 18px;
+  padding-inline: max(18px, env(safe-area-inset-left))
+    max(18px, env(safe-area-inset-right));
+  min-height: 26px;
+  background: var(--panel, #f1efe9);
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.performance-bar b {
+  color: var(--ink, #514739);
+  font-weight: 550;
+}
+.performance-link {
+  min-height: 26px;
+}
+@media (orientation: landscape) {
+  .performance-bar {
+    display: flex;
+  }
+}
+@media (max-width: 750px) {
+  .performance-bar {
+    padding-inline: max(8px, env(safe-area-inset-left))
+      max(8px, env(safe-area-inset-right));
+  }
+  .performance-extra {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  .model-controls {
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+  .model-controls > .picker {
+    min-width: 0;
+    max-width: 125px;
+    min-height: 40px;
+    font-size: 11px;
+  }
+  .model-controls > .icon,
+  .composer-controls > .send {
+    min-width: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+  .composer-more {
+    padding: 0 5px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+  .composer-more svg {
+    margin-right: -2px;
+  }
+  .command-menu > button {
+    min-height: 38px;
+  }
+}
+@media (max-width: 620px) {
+  .empty-session h1 {
+    font-size: 21px;
+  }
+  .topbar > .breadcrumb {
+    display: none;
+  }
+  .topbar > .session-title {
+    min-width: 0;
+    max-width: none;
+    font-size: 12px;
+  }
+  .run-summary button {
+    min-height: 36px;
+  }
+}

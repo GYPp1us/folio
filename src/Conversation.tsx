@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { Virtuoso, type VirtuosoHandle, type ListItem } from "react-virtuoso";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, ChevronRight } from "lucide-react";
 import {
   buildTranscript,
   StreamSegments,
@@ -194,6 +194,7 @@ export const Conversation = forwardRef<
     assets: Asset[];
     view: TranscriptView;
     completedRunId: string;
+    activeRunId: string;
     liveText: string;
     liveRunId: string;
     children: ReactNode;
@@ -208,6 +209,7 @@ export const Conversation = forwardRef<
     assets,
     view,
     completedRunId,
+    activeRunId,
     liveText,
     liveRunId,
     children,
@@ -217,9 +219,16 @@ export const Conversation = forwardRef<
   },
   ref,
 ) {
+  const [expandedRuns, setExpandedRuns] = useState<Set<string>>(
+    () => new Set(),
+  );
   const history = useMemo(
-    () => buildTranscript(messages, blocks, assets, view),
-    [messages, blocks, assets, view],
+    () =>
+      buildTranscript(messages, blocks, assets, view, {
+        activeRunId,
+        expanded: expandedRuns,
+      }),
+    [messages, blocks, assets, view, activeRunId, expandedRuns],
   );
   const stream = useRef(new StreamSegments());
   const rows = useMemo(() => {
@@ -245,9 +254,11 @@ export const Conversation = forwardRef<
   const mode = useRef<Mode>("tail"),
     [reading, setReading] = useState(false),
     [opened, setOpened] = useState<Set<string>>(() => new Set());
-  const anchor = useRef<{ messageId: string; runId: string } | null>(null),
+  const anchor = useRef<{ messageId: string; key: string } | null>(null),
     handled = useRef(""),
-    frame = useRef(0);
+    frame = useRef(0),
+    pendingSummary = useRef<{ runId: string; focus: boolean } | null>(null),
+    touchStart = useRef<{ x: number; y: number } | null>(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const [viewport, setViewport] = useState(0),
@@ -259,18 +270,53 @@ export const Conversation = forwardRef<
     mode.current = value;
     setReading(value === "reading");
   }, []);
-  const align = useCallback((behavior: "auto" | "smooth" = "auto") => {
-    if (frame.current) cancelAnimationFrame(frame.current);
+  const align = useCallback(() => {
+    if (frame.current) return;
     frame.current = requestAnimationFrame(() => {
       frame.current = 0;
-      if (mode.current === "tail")
-        list.current?.scrollTo({ top: Number.MAX_SAFE_INTEGER, behavior });
-      else if (mode.current === "final" && anchor.current) {
+      const element = scroller.current;
+      if (!element) return;
+      const summary = pendingSummary.current;
+      if (summary) {
+        pendingSummary.current = null;
         const index = rowsRef.current.findIndex(
-          (row) => row.message?.id === anchor.current!.messageId && row.first,
+          (row) => row.key === "run-summary:" + summary.runId,
         );
         if (index >= 0)
-          list.current?.scrollToIndex({ index, align: "start", behavior });
+          list.current?.scrollToIndex({
+            index,
+            align: "start",
+            behavior: "auto",
+          });
+        if (summary.focus)
+          requestAnimationFrame(() => {
+            document
+              .getElementById("run-details-" + summary.runId)
+              ?.focus({ preventScroll: true });
+          });
+      } else if (mode.current === "tail") {
+        if (element.scrollHeight - element.clientHeight - element.scrollTop > 1)
+          list.current?.scrollTo({
+            top: Number.MAX_SAFE_INTEGER,
+            behavior: "auto",
+          });
+      } else if (mode.current === "final" && anchor.current) {
+        const key = anchor.current.key;
+        const index = rowsRef.current.findIndex((row) => row.key === key);
+        const item = element.querySelector<HTMLElement>(
+          '[data-transcript-key="' + CSS.escape(key) + '"]',
+        );
+        if (item) {
+          const offset =
+            item.getBoundingClientRect().top -
+            element.getBoundingClientRect().top;
+          if (Math.abs(offset) > 1) element.scrollTop += offset;
+        } else if (index >= 0)
+          list.current?.scrollToIndex({
+            index,
+            align: "start",
+            behavior: "auto",
+          });
       }
     });
   }, []);
@@ -298,33 +344,32 @@ export const Conversation = forwardRef<
     const index = finalReplyStart(rows, completedRunId);
     if (index < 0) return;
     handled.current = completedRunId;
-    const ids = new Set(
-      blocks
-        .filter((block) => block.runId === completedRunId)
-        .map((block) => block.id),
-    );
-    setOpened(
-      (previous) => new Set([...previous].filter((id) => !ids.has(id))),
-    );
     if (mode.current !== "tail") return;
+    const prior = rows[index - 1];
     anchor.current = {
-      runId: completedRunId,
+      key:
+        prior?.kind === "run-summary" && prior.runId === completedRunId
+          ? prior.key
+          : rows[index].key,
       messageId: rows[index].message!.id,
     };
     sizes.current.clear();
     setSpacer(Math.max(0, viewport - 60));
     changeMode("final");
-    // Tool collapse is committed before scrolling; subsequent measurements correct alignment.
-    align("smooth");
-  }, [completedRunId, rows, blocks, viewport, align, changeMode]);
-  useEffect(() => {
-    if (mode.current !== "reading") align();
+    align();
+  }, [completedRunId, rows, viewport, align, changeMode]);
+  useLayoutEffect(() => {
+    if (pendingSummary.current || mode.current !== "reading") align();
   }, [rows, view, viewport, align]);
   const onSizes = useCallback(
     (items: ListItem<TranscriptRow>[]) => {
       if (mode.current !== "final" || !anchor.current) return;
       for (const item of items)
-        if (item.data?.message?.id === anchor.current.messageId)
+        if (
+          item.data &&
+          (item.data.message?.id === anchor.current.messageId ||
+            item.data.key === anchor.current.key)
+        )
           sizes.current.set(item.data.key, item.size);
       const height = [...sizes.current.values()].reduce((a, b) => a + b, 0);
       setSpacer(Math.max(0, viewport - height - 20));
@@ -341,6 +386,19 @@ export const Conversation = forwardRef<
       }),
     [],
   );
+  const toggleRun = (runId: string, focus: boolean) => {
+    anchor.current = null;
+    sizes.current.clear();
+    setSpacer(0);
+    pendingSummary.current = { runId, focus };
+    changeMode("reading");
+    setExpandedRuns((previous) => {
+      const next = new Set(previous);
+      if (next.has(runId)) next.delete(runId);
+      else next.add(runId);
+      return next;
+    });
+  };
   const pause = () => {
     gesture.current = Date.now();
     changeMode("reading");
@@ -351,6 +409,7 @@ export const Conversation = forwardRef<
       className="conversation-window"
       ref={wrapper}
       onWheelCapture={(e) => {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
         const element = scroller.current;
         if (
           e.deltaY > 0 &&
@@ -360,7 +419,21 @@ export const Conversation = forwardRef<
           follow();
         else pause();
       }}
-      onTouchMoveCapture={pause}
+      onTouchStartCapture={(event) => {
+        const touch = event.touches[0];
+        touchStart.current =
+          event.touches.length === 1
+            ? { x: touch.clientX, y: touch.clientY }
+            : null;
+      }}
+      onTouchMoveCapture={(event) => {
+        const start = touchStart.current;
+        if (!start || event.touches.length !== 1) return;
+        const touch = event.touches[0];
+        const vertical = Math.abs(touch.clientY - start.y);
+        if (vertical > 8 && vertical > Math.abs(touch.clientX - start.x))
+          pause();
+      }}
       onPointerDownCapture={(e) => {
         if (e.target === scroller.current) pause();
       }}
@@ -376,8 +449,10 @@ export const Conversation = forwardRef<
             " ",
           ].includes(e.key) &&
           !(
-            e.target instanceof HTMLInputElement ||
-            e.target instanceof HTMLTextAreaElement
+            e.target instanceof Element &&
+            e.target.closest(
+              "button, a, input, textarea, select, summary, [contenteditable], [role=button]",
+            )
           )
         )
           pause();
@@ -398,7 +473,6 @@ export const Conversation = forwardRef<
           scrollerRef={(element) => {
             scroller.current = element instanceof HTMLElement ? element : null;
           }}
-          followOutput={() => (mode.current === "tail" ? "auto" : false)}
           totalListHeightChanged={() => align()}
           itemsRendered={onSizes}
           atBottomThreshold={50}
@@ -428,17 +502,39 @@ export const Conversation = forwardRef<
               follow();
             previousTop.current = top;
           }}
-          itemContent={(_index, row) => (
-            <Row
-              row={row}
-              view={view}
-              open={!!row.block && opened.has(row.block.id)}
-              onToggle={toggle}
-              onError={onError}
-              onOpen={onOpen}
-              onReference={onReference}
-            />
-          )}
+          itemContent={(_index, row) =>
+            row.kind === "run-summary" && row.runId ? (
+              <div
+                className="transcript-item run-summary"
+                data-transcript-key={row.key}
+              >
+                <button
+                  type="button"
+                  id={"run-details-" + row.runId}
+                  aria-expanded={expandedRuns.has(row.runId)}
+                  onClick={(event) => toggleRun(row.runId!, event.detail === 0)}
+                >
+                  <ChevronRight size={13} />
+                  <span>
+                    {expandedRuns.has(row.runId)
+                      ? "收起执行过程"
+                      : "展开执行过程"}
+                  </span>
+                  <small>{row.detailCount} 条</small>
+                </button>
+              </div>
+            ) : (
+              <Row
+                row={row}
+                view={view}
+                open={!!row.block && opened.has(row.block.id)}
+                onToggle={toggle}
+                onError={onError}
+                onOpen={onOpen}
+                onReference={onReference}
+              />
+            )
+          }
         />
       </FooterContext.Provider>
       {reading && (

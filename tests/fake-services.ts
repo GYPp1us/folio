@@ -315,17 +315,20 @@ export async function fakeServices(
               },
             });
           }
-          for (const delta of options.streamChunks || [reply]) {
+          const stream = (event: object) =>
             send({
               type: "stream_event",
               uuid: randomUUID(),
               session_id: sessionId,
               parent_tool_use_id: null,
-              event: {
-                type: "content_block_delta",
-                index: 0,
-                delta: { type: "text_delta", text: delta },
-              },
+              event,
+            });
+          stream({ type: "message_start" });
+          for (const delta of options.streamChunks || [reply]) {
+            stream({
+              type: "content_block_delta",
+              index: 0,
+              delta: { type: "text_delta", text: delta },
             });
             if (options.streamPauseMs)
               await new Promise((resolve) =>
@@ -333,6 +336,8 @@ export async function fakeServices(
               );
             if (res.destroyed || res.writableEnded || !busy) return;
           }
+          stream({ type: "message_delta", usage: { output_tokens: 3 } });
+          stream({ type: "message_stop" });
           send({
             type: "assistant",
             uuid: randomUUID(),

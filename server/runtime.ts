@@ -83,6 +83,8 @@ export type Run = {
   blockKinds?: Map<number, string>;
   tools?: Map<string, { name: string; command?: string }>;
   taskTools?: Map<string, string>;
+  streamSample?: { first?: number; last?: number; tokens?: number };
+  streamTotals?: { ms: number; tokens: number };
 };
 type Connection = {
   session: Session;
@@ -899,7 +901,30 @@ export class RuntimeManager {
         run.output = "";
         run.streamed = false;
         run.blockKinds?.clear();
+        run.streamSample = {};
         this.waitForWork(c);
+      }
+      const sample = run.streamSample;
+      if (sample && msg.event.type === "content_block_delta") {
+        sample.last = performance.now();
+        sample.first ??= sample.last;
+      }
+      if (sample && msg.event.type === "message_delta")
+        sample.tokens = msg.event.usage?.output_tokens ?? undefined;
+      if (sample && msg.event.type === "message_stop") {
+        run.streamSample = undefined;
+        const ms = (sample.last ?? 0) - (sample.first ?? 0);
+        // Exclude missing or batched streams that have no meaningful decode window.
+        if (
+          ms >= 200 &&
+          sample.tokens &&
+          Number.isSafeInteger(sample.tokens) &&
+          sample.tokens > 0
+        ) {
+          const totals = (run.streamTotals ||= { ms: 0, tokens: 0 });
+          totals.ms += ms;
+          totals.tokens += sample.tokens;
+        }
       }
       if (msg.event.type === "content_block_start") {
         const block = msg.event.content_block;
@@ -1075,6 +1100,9 @@ export class RuntimeManager {
     }
     if (msg.type === "result") {
       const generation = run.generation;
+      const sampled = run.streamTotals;
+      run.streamTotals = undefined;
+      run.streamSample = undefined;
       c.session = {
         ...this.store.session(c.session.id)!,
         usage: mergeUsage(this.store.session(c.session.id)?.usage, {
@@ -1082,6 +1110,11 @@ export class RuntimeManager {
           model_usage: msg.modelUsage,
           usage: msg.usage,
           num_turns: msg.num_turns,
+          last_result: {
+            durationMs: msg.duration_ms,
+            apiMs: msg.duration_api_ms,
+            tps: sampled ? (1000 * sampled.tokens) / sampled.ms : undefined,
+          },
         }),
       };
       this.store.save(c.session);

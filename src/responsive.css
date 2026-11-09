@@ -155,16 +155,17 @@
 @media (max-width: 620px) {
   .sidebar {
     position: fixed;
-    left: -240px;
+    left: 0;
+    transform: translateX(-120%);
+    transition: transform 180ms ease;
     top: 0;
     bottom: 0;
     width: 220px;
     z-index: 70;
-    transition: left 0.2s;
     box-shadow: 8px 0 40px #523c1b26;
   }
   .sidebar.open {
-    left: 0;
+    transform: none;
   }
   .nav-scrim {
     position: fixed;
@@ -401,7 +402,9 @@
   }
   .sidebar {
     position: fixed;
-    left: -240px;
+    left: 0;
+    transform: translateX(-120%);
+    transition: transform 180ms ease;
     top: 0;
     bottom: 0;
     width: 220px;
@@ -409,7 +412,7 @@
     box-shadow: 8px 0 40px #523c1b26;
   }
   .sidebar.open {
-    left: 0;
+    transform: none;
   }
   .nav-scrim {
     position: fixed;
@@ -485,12 +488,7 @@
   }
   .model-controls {
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
     min-width: 0;
-  }
-  .model-controls > * {
-    flex-shrink: 0;
   }
   .composer:has(textarea:disabled) {
     display: none;

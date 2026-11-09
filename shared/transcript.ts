@@ -6,7 +6,8 @@ export type TranscriptView = "zh" | "both" | "original";
 type Segment = { original: string; chinese?: string; bilingual: boolean };
 export type TranscriptRow = Segment & {
   key: string;
-  kind: "message" | "dialogue" | "tool" | "stream";
+  kind: "message" | "dialogue" | "tool" | "stream" | "run-summary";
+  detailCount?: number;
   runId?: string;
   message?: Message;
   block?: TraceBlock;
@@ -81,6 +82,7 @@ export function buildTranscript(
   blocks: TraceBlock[],
   assets: Asset[],
   view: TranscriptView,
+  details?: { activeRunId: string; expanded: ReadonlySet<string> },
 ): TranscriptRow[] {
   const byBlock = new Map(blocks.map((b) => [b.id, b]));
   const byAsset = new Map(assets.map((a) => [a.id, a]));
@@ -116,6 +118,28 @@ export function buildTranscript(
       !(isToolDetail(b) && b.toolId && calls.has(b.runId + ":" + b.toolId)),
   );
   const rows: TranscriptRow[] = [];
+  const grouped = new Map<string, { first: string; count: number }>();
+  if (details) {
+    for (const block of traces) {
+      if (!block.runId || block.runId === details.activeRunId) continue;
+      const group = grouped.get(block.runId);
+      if (group) group.count++;
+      else grouped.set(block.runId, { first: block.id, count: 1 });
+    }
+  }
+  const addSummary = (runId: string, detailCount: number) =>
+    rows.push({
+      key: "run-summary:" + runId,
+      kind: "run-summary",
+      runId,
+      detailCount,
+      original: "",
+      bilingual: false,
+      first: true,
+      last: true,
+      results: [],
+      assets: [],
+    });
   let mi = 0,
     bi = 0;
   while (mi < messages.length || bi < traces.length) {
@@ -128,6 +152,15 @@ export function buildTranscript(
       (mt < bt || (mt === bt && message.role !== "assistant") || !block)
     ) {
       mi++;
+      const runId = message.runId;
+      const group = runId && grouped.get(runId);
+      if (
+        runId &&
+        group &&
+        lastAssistant.get(runId) === message.id &&
+        !details?.expanded.has(runId)
+      )
+        addSummary(runId, group.count);
       const parts = segments(message, view);
       const attached = (message.attachments || [])
         .map((id) => byAsset.get(id))
@@ -155,6 +188,16 @@ export function buildTranscript(
       );
     } else if (block) {
       bi++;
+      const group = grouped.get(block.runId);
+      if (group) {
+        const expanded = details?.expanded.has(block.runId);
+        if (
+          block.id === group.first &&
+          (expanded || !lastAssistant.has(block.runId))
+        )
+          addSummary(block.runId, group.count);
+        if (!expanded) continue;
+      }
       const parts =
         block.kind === "commentary"
           ? segments(block, view)

@@ -69,6 +69,38 @@ test("时间线保留插话顺序、工具结果按轮关联，完成聚焦最�
   );
   assert.equal(finalReplyStart(rows, "absent"), -1);
 });
+test("整轮执行过程默认折叠，展开保留时序，运行中或无最终回复时也可正确显示", () => {
+  const first = message("user", "finished", "start");
+  const commentary = block("commentary", "finished");
+  const call = block("tool", "finished", "bash");
+  const steer = message("user", "finished", "steer");
+  const result = block("tool_result", "finished", "bash");
+  const final = message("assistant", "finished", "final");
+  const orphan = block("tool_progress", "failed");
+  const active = block("commentary", "active");
+  const messages = [first, steer, final];
+  const blocks = [commentary, call, result, orphan, active];
+  const options = { activeRunId: "active", expanded: new Set<string>() };
+  const collapsed = buildTranscript(messages, blocks, [], "zh", options);
+  assert.deepEqual(
+    collapsed.map((row) => row.kind),
+    ["message", "message", "run-summary", "message", "run-summary", "dialogue"],
+  );
+  assert.equal(collapsed[2].detailCount, 2);
+  assert.equal(collapsed[3].message?.id, final.id);
+  assert.equal(collapsed[4].detailCount, 1);
+  assert.equal(collapsed.at(-1)?.block?.id, active.id);
+  options.expanded.add("finished");
+  const expanded = buildTranscript(messages, blocks, [], "zh", options);
+  assert.deepEqual(
+    expanded.slice(0, 6).map((row) => row.kind),
+    ["message", "run-summary", "dialogue", "tool", "message", "message"],
+  );
+  assert.equal(expanded[1].key, collapsed[2].key);
+  assert.equal(expanded[3].results[0].id, result.id);
+  assert.equal(expanded[5].key, collapsed[3].key);
+});
+
 test("长 Markdown 在块边界分段，代码/HTML保持完整且参考链接在各段可解析", () => {
   const html = "```html\n<section><p>Preview</p></section>\n```";
   const code = "```ts\n" + "const a=1;\n".repeat(1200) + "```";
@@ -222,6 +254,14 @@ test(
       );
       assert.match(snapshot.live.text, /^Com/);
       await (await fetch(server.base + `/runs/${run.runId}/events`)).text();
+      const { session: updated } = await request(
+        `/sessions/${session.id}?tail=1`,
+      );
+      assert.equal(updated.usage.last_result.durationMs, 800);
+      assert.equal(updated.usage.last_result.apiMs, 10);
+      assert.ok(
+        updated.usage.last_result.tps > 0 && updated.usage.last_result.tps < 15,
+      );
       for (const reader of readers) await reader.cancel();
       await Promise.all([delta.pump, legacy.pump]);
       const pieces = delta
