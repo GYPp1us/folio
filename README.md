@@ -26,7 +26,7 @@ npm run dev
 | `npm start` | 从默认端口 3210 同源提供 API 和已构建页面 |
 | `npm test` | 运行回归测试。测试使用本机模拟服务，无需真实 token |
 
-黑色主题可选自定义背景。把透明 PNG 保存为 `src/assets/folio-wallpaper.png` 后重新构建；这份本地个性化资源由 Git 忽略。
+浅色和黑色主题都可选自定义背景。把透明 PNG 保存为 `src/assets/folio-wallpaper.png` 后重新构建；这份本地个性化资源由 Git 忽略。
 
 ## 自托管
 

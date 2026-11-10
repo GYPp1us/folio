@@ -187,10 +187,21 @@
 }
 
 /* The wallpaper stays behind the scroller and above the composer. */
-[data-theme="dark"][data-wallpaper] .conversation-window {
+[data-wallpaper] {
+  --wallpaper-opacity: 0.08;
+  --wallpaper-empty-opacity: 0.78;
+  --wallpaper-portrait-opacity: 0.05;
+}
+[data-theme="dark"][data-wallpaper] {
+  --wallpaper-opacity: 0.1;
+  --wallpaper-empty-opacity: 0.88;
+  --wallpaper-portrait-opacity: 0.055;
+  --wallpaper-brightness: 1.2;
+}
+[data-wallpaper] .conversation-window {
   isolation: isolate;
 }
-[data-theme="dark"][data-wallpaper] .conversation-window::before {
+[data-wallpaper] .conversation-window::before {
   content: "";
   position: absolute;
   z-index: -1;
@@ -200,30 +211,27 @@
   width: min(60%, 560px);
   height: 100%;
   background: var(--folio-wallpaper) right bottom / contain no-repeat;
-  opacity: 0.1;
+  filter: brightness(var(--wallpaper-brightness, 1));
+  opacity: var(--wallpaper-opacity);
   mask-image: linear-gradient(to right, transparent, black 72%);
 }
-[data-theme="dark"][data-wallpaper]
-  .chat[data-empty="true"]
-  .conversation-window::before {
-  opacity: 0.88;
+[data-wallpaper] .chat[data-empty="true"] .conversation-window::before {
+  opacity: var(--wallpaper-empty-opacity);
   mask-image: none;
 }
-[data-theme="dark"][data-wallpaper] .empty-session {
+[data-wallpaper] .empty-session {
   align-items: flex-start;
 }
 
 @media (max-width: 620px), (max-width: 900px) and (orientation: portrait) {
-  [data-theme="dark"][data-wallpaper] .conversation-window::before {
+  [data-wallpaper] .conversation-window::before {
     width: min(90%, 460px);
     height: 78%;
   }
-  [data-theme="dark"][data-wallpaper]
-    .chat[data-empty="false"]
-    .conversation-window::before {
-    opacity: 0.055;
+  [data-wallpaper] .chat[data-empty="false"] .conversation-window::before {
+    opacity: var(--wallpaper-portrait-opacity);
   }
-  [data-theme="dark"][data-wallpaper] .empty-session {
+  [data-wallpaper] .empty-session {
     align-items: center;
     justify-content: flex-start;
     padding: clamp(18px, 6dvh, 58px) 0 0;
