@@ -6,6 +6,7 @@ coverage/
 __pycache__/
 *.py[cod]
 .gradle/
+/apps/android/build/
 *.apk
 *.idsig
 artifacts/

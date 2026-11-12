@@ -3,7 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type TouchEvent,
+  type PointerEvent,
 } from "react";
 
 export function useMediaQuery(query: string) {
@@ -19,15 +19,15 @@ export function useMediaQuery(query: string) {
 }
 
 export function usePortraitSwipe(enabled: boolean, open: () => void) {
-  const start = useRef<{ x: number; y: number } | null>(null);
+  const start = useRef<{ id: number; x: number; y: number } | null>(null);
+  const finish = (event: PointerEvent<HTMLElement>) => {
+    if (start.current?.id === event.pointerId) start.current = null;
+  };
   return {
-    onTouchStart(event: TouchEvent<HTMLElement>) {
+    onPointerDown(event: PointerEvent<HTMLElement>) {
+      if (event.pointerType !== "touch") return;
       start.current = null;
-      if (
-        !enabled ||
-        event.touches.length !== 1 ||
-        !(event.target instanceof Element)
-      )
+      if (!enabled || !event.isPrimary || !(event.target instanceof Element))
         return;
       const target = event.target;
       if (
@@ -37,30 +37,32 @@ export function usePortraitSwipe(enabled: boolean, open: () => void) {
         )
       )
         return;
-      const touch = event.touches[0];
-      // Leave system navigation at the screen edges to the OS.
-      if (touch.clientX < 24 || touch.clientX > innerWidth - 24) return;
-      start.current = { x: touch.clientX, y: touch.clientY };
+      start.current = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+      };
     },
-    onTouchEnd(event: TouchEvent<HTMLElement>) {
+    onPointerMove(event: PointerEvent<HTMLElement>) {
       const origin = start.current;
-      start.current = null;
-      if (
-        !enabled ||
-        !origin ||
-        event.touches.length ||
-        !event.changedTouches.length ||
-        window.getSelection()?.isCollapsed === false
-      )
+      if (!enabled || !origin || origin.id !== event.pointerId) return;
+      const left = origin.x - event.clientX;
+      const vertical = Math.abs(origin.y - event.clientY);
+      if (vertical > 14 && vertical >= Math.abs(left)) {
+        start.current = null;
         return;
-      const touch = event.changedTouches[0];
-      const distance = origin.x - touch.clientX;
-      if (distance >= 60 && distance > Math.abs(origin.y - touch.clientY) * 1.7)
+      }
+      if (
+        left >= 56 &&
+        left > vertical * 1.4 &&
+        window.getSelection()?.isCollapsed !== false
+      ) {
+        start.current = null;
         open();
+      }
     },
-    onTouchCancel() {
-      start.current = null;
-    },
+    onPointerUp: finish,
+    onPointerCancel: finish,
   };
 }
 

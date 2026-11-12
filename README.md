@@ -37,3 +37,5 @@ npm run dev
 ## Android
 
 在 [Releases](https://github.com/GYPp1us/folio/releases) 下载 APK 和校验和。Android 10 或更高版本可用。APK 连接 [Folio 工作台](https://folio.arcol.site)，首次打开时输入该站点的访问密码。
+
+原生源码和构建说明见 [Folio Android](apps/android/README.md)。

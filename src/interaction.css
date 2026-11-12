@@ -148,3 +148,10 @@
     min-height: 36px;
   }
 }
+@media (max-width: 850px) and (orientation: portrait) {
+  /* Let the browser own vertical scrolling and pinch zoom. */
+  .topbar,
+  .conversation[data-virtuoso-scroller] {
+    touch-action: pan-y pinch-zoom;
+  }
+}
