@@ -4,28 +4,46 @@ on:
   push:
     tags:
       - 'android-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing Android release tag
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: android-release-${{ github.ref }}
+  group: android-release-${{ inputs.tag || github.ref_name }}
 
 jobs:
   release:
     runs-on: windows-2025
     timeout-minutes: 15
     steps:
+      - name: Select release tag
+        id: release-tag
+        env:
+          REQUESTED_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if ($env:REQUESTED_TAG -cnotmatch '^android-v\d+\.\d+\.\d+$') {
+            throw 'Expected an Android release tag such as android-v0.5.6'
+          }
+          "ref=refs/tags/$env:REQUESTED_TAG" >> $env:GITHUB_OUTPUT
+          "FOLIO_ANDROID_TAG=$env:REQUESTED_TAG" >> $env:GITHUB_ENV
+
       - name: Check out release
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ steps.release-tag.outputs.ref }}
 
       - name: Validate version
         run: |
           $manifest = [xml](Get-Content -Raw apps/android/AndroidManifest.xml)
           $version = $manifest.manifest.GetAttribute('versionName', 'http://schemas.android.com/apk/res/android')
-          if ($version -notmatch '^\d+\.\d+\.\d+$' -or $env:GITHUB_REF_NAME -cne "android-v$version") {
+          if ($env:FOLIO_ANDROID_TAG -cne "android-v$version") {
             throw 'Release tag must match the Android manifest version'
           }
           "FOLIO_ANDROID_VERSION=$version" >> $env:GITHUB_ENV
@@ -62,4 +80,4 @@ jobs:
           $checksum = "$apk.sha256"
           $digest = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
           "$digest  $name" | Set-Content -LiteralPath $checksum -Encoding ascii
-          gh release create $env:GITHUB_REF_NAME $apk $checksum --repo $env:GITHUB_REPOSITORY --verify-tag --notes-from-tag --title "Folio Android $version" --latest
+          gh release create $env:FOLIO_ANDROID_TAG $apk $checksum --repo $env:GITHUB_REPOSITORY --verify-tag --notes-from-tag --title "Folio Android $version" --latest
