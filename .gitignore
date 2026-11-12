@@ -27,6 +27,7 @@ vault.key
 *.key
 *.jks
 *.keystore
+store.pass
 .credentials.json
 .oauth_token
 sandbox.token

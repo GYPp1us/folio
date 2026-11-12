@@ -51,16 +51,16 @@ try {
     $keystore = Join-Path $SigningDir 'folio-release.jks'
     $passwordFile = Join-Path $SigningDir 'store.pass'
     if (!(Test-Path -LiteralPath $keystore) -or !(Test-Path -LiteralPath $passwordFile)) {
-      throw '签名需要原版 folio-release.jks 和 store.pass'
+      throw '签名需要 folio-release.jks 和 store.pass'
     }
     $signer = Join-Path $tools 'apksigner.bat'
     $candidate = Join-Path $work 'signed.apk'
     Invoke-Tool $signer @('sign','--ks',$keystore,'--ks-pass',("file:" + $passwordFile),
-      '--key-pass',("file:" + $passwordFile),'--out',$candidate,$aligned)
+      '--out',$candidate,$aligned)
     $report = Invoke-Tool $signer @('verify','--print-certs',$candidate)
-    $fingerprint = 'eed18f69140eef3993e733c1b6aadc53a694d2a41e18cdf07804b86b80599af8'
+    $fingerprint = 'a2e653c610d2ade0fb15cd3ad3063abb340b8bbc21917e42eff852d815462234'
     if ($report -notcontains "Signer #1 certificate SHA-256 digest: $fingerprint") {
-      throw '签名与公开的 0.4.3 APK 不匹配'
+      throw '签名与 Folio 发布证书不匹配'
     }
     $output = Join-Path $OutputDir "Folio-$version-android.apk"
     Copy-Item -LiteralPath $candidate -Destination $output

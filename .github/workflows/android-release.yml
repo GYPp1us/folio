@@ -1,0 +1,65 @@
+name: Android release
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Check out release
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate version
+        run: |
+          $manifest = [xml](Get-Content -Raw apps/android/AndroidManifest.xml)
+          $version = $manifest.manifest.GetAttribute('versionName', 'http://schemas.android.com/apk/res/android')
+          if ($version -notmatch '^\d+\.\d+\.\d+$' -or $env:GITHUB_REF_NAME -cne "android-v$version") {
+            throw 'Release tag must match the Android manifest version'
+          }
+          "FOLIO_ANDROID_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Build and verify signed APK
+        env:
+          FOLIO_ANDROID_KEYSTORE_BASE64: ${{ secrets.FOLIO_ANDROID_KEYSTORE_BASE64 }}
+          FOLIO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.FOLIO_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if (!$env:FOLIO_ANDROID_KEYSTORE_BASE64 -or !$env:FOLIO_ANDROID_KEYSTORE_PASSWORD) {
+            throw 'Android release signing secrets are missing'
+          }
+          $signingDir = Join-Path $env:RUNNER_TEMP ("folio-signing-" + [guid]::NewGuid().ToString('N'))
+          $keystore = Join-Path $signingDir 'folio-release.jks'
+          $password = Join-Path $signingDir 'store.pass'
+          $outputDir = Join-Path $env:RUNNER_TEMP 'folio-android'
+          New-Item -ItemType Directory -Path $signingDir | Out-Null
+          try {
+            [IO.File]::WriteAllBytes($keystore, [Convert]::FromBase64String($env:FOLIO_ANDROID_KEYSTORE_BASE64))
+            [IO.File]::WriteAllText($password, $env:FOLIO_ANDROID_KEYSTORE_PASSWORD, [Text.Encoding]::ASCII)
+            Remove-Item Env:FOLIO_ANDROID_KEYSTORE_BASE64, Env:FOLIO_ANDROID_KEYSTORE_PASSWORD
+            ./apps/android/build.ps1 -OutputDir $outputDir -SigningDir $signingDir
+          } finally {
+            Remove-Item -LiteralPath $keystore, $password, $signingDir -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = $env:FOLIO_ANDROID_VERSION
+          $name = "Folio-$version-android.apk"
+          $apk = Join-Path $env:RUNNER_TEMP "folio-android/$name"
+          $checksum = "$apk.sha256"
+          $digest = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $name" | Set-Content -LiteralPath $checksum -Encoding ascii
+          gh release create $env:GITHUB_REF_NAME $apk $checksum --repo $env:GITHUB_REPOSITORY --verify-tag --notes-from-tag --title "Folio Android $version" --latest
