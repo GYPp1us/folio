@@ -80,4 +80,4 @@ jobs:
           $checksum = "$apk.sha256"
           $digest = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
           "$digest  $name" | Set-Content -LiteralPath $checksum -Encoding ascii
-          gh release create $env:FOLIO_ANDROID_TAG $apk $checksum --repo $env:GITHUB_REPOSITORY --verify-tag --notes-from-tag --title "Folio Android $version" --latest
+          gh release create $env:FOLIO_ANDROID_TAG $apk $checksum --verify-tag --notes-from-tag --title "Folio Android $version" --latest
